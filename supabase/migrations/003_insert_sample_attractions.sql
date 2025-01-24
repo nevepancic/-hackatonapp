@@ -64,4 +64,4 @@ INSERT INTO attractions (
     'Netherlands',
     '{"monday": "10:00-16:30", "tuesday": "10:00-16:30", "wednesday": "10:00-16:30", "thursday": "10:00-16:30", "friday": "10:00-16:30", "saturday": "10:00-17:30", "sunday": "10:00-17:30"}',
     'pending'
-); 
+);

@@ -4,40 +4,165 @@
 
 import { useEffect, useState } from 'react';
 import { getCurrentUser } from '@/lib/functions/user';
-import { getAttractions, type Attraction } from '@/lib/functions/attractions';
+import {
+  getAttractions,
+  updateAttraction,
+  deleteAttraction,
+  type Attraction,
+  type UpdateAttractionData,
+} from '@/lib/functions/attractions';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, Globe } from 'lucide-react';
+import {
+  MapPin,
+  Globe,
+  MoreVertical,
+  Pencil,
+  Trash,
+  ArrowUpDown,
+} from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { toast } from 'sonner';
 
 type StatusType = 'all' | 'pending' | 'approved' | 'declined';
+type SortType = 'name' | 'date';
+type SortDirection = 'asc' | 'desc';
 
 export default function ShowAttractions() {
   const [attractions, setAttractions] = useState<Attraction[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentStatus, setCurrentStatus] = useState<StatusType>('all');
+  const [sortBy, setSortBy] = useState<SortType>('date');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [editingAttraction, setEditingAttraction] = useState<Attraction | null>(
+    null
+  );
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deletingAttractionId, setDeletingAttractionId] = useState<
+    string | null
+  >(null);
+  const [editForm, setEditForm] = useState<UpdateAttractionData>({
+    name: '',
+    short_description: '',
+    long_description: '',
+    address: '',
+    city: '',
+    country: '',
+  });
 
   useEffect(() => {
-    async function loadAttractions() {
-      try {
-        const user = await getCurrentUser();
-        const userAttractions = await getAttractions(user.id);
-        setAttractions(userAttractions);
-      } catch (error) {
-        console.error('Error loading attractions:', error);
-      } finally {
-        setLoading(false);
-      }
-    }
-
     loadAttractions();
   }, []);
 
-  const filteredAttractions = attractions.filter((attraction) => {
-    if (currentStatus === 'all') return true;
-    return attraction.status === currentStatus;
-  });
+  async function loadAttractions() {
+    try {
+      const user = await getCurrentUser();
+      const userAttractions = await getAttractions(user.id);
+      setAttractions(userAttractions);
+    } catch (error) {
+      console.error('Error loading attractions:', error);
+      toast.error('Failed to load attractions');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const handleEdit = (attraction: Attraction) => {
+    setEditingAttraction(attraction);
+    setEditForm({
+      name: attraction.name,
+      short_description: attraction.short_description,
+      long_description: attraction.long_description,
+      address: attraction.address,
+      city: attraction.city,
+      country: attraction.country,
+    });
+  };
+
+  const handleDelete = async (attractionId: string) => {
+    try {
+      const user = await getCurrentUser();
+      await deleteAttraction(attractionId, user.id);
+      await loadAttractions();
+      toast.success('Attraction deleted successfully');
+    } catch (error) {
+      console.error('Error deleting attraction:', error);
+      toast.error('Failed to delete attraction');
+    } finally {
+      setShowDeleteDialog(false);
+      setDeletingAttractionId(null);
+    }
+  };
+
+  const handleUpdate = async () => {
+    if (!editingAttraction) return;
+
+    try {
+      const user = await getCurrentUser();
+      await updateAttraction(editingAttraction.id, user.id, editForm);
+      await loadAttractions();
+      setEditingAttraction(null);
+      toast.success('Attraction updated successfully');
+    } catch (error) {
+      console.error('Error updating attraction:', error);
+      toast.error('Failed to update attraction');
+    }
+  };
+
+  const toggleSort = (type: SortType) => {
+    if (sortBy === type) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(type);
+      setSortDirection('asc');
+    }
+  };
+
+  const sortedAndFilteredAttractions = attractions
+    .filter((attraction) => {
+      if (currentStatus === 'all') return true;
+      return attraction.status === currentStatus;
+    })
+    .sort((a, b) => {
+      const modifier = sortDirection === 'asc' ? 1 : -1;
+      if (sortBy === 'name') {
+        return a.name.localeCompare(b.name) * modifier;
+      } else {
+        return (
+          (new Date(b.updated_at).getTime() -
+            new Date(a.updated_at).getTime()) *
+          modifier
+        );
+      }
+    });
 
   const getStatusClassName = (status: string) => {
     switch (status) {
@@ -67,22 +192,45 @@ export default function ShowAttractions() {
         </p>
       </div>
 
-      <Tabs
-        defaultValue='all'
-        value={currentStatus}
-        onValueChange={(value) => setCurrentStatus(value as StatusType)}
-        className='w-full'
-      >
-        <TabsList className='grid w-full grid-cols-4'>
-          <TabsTrigger value='all'>All</TabsTrigger>
-          <TabsTrigger value='approved'>Approved</TabsTrigger>
-          <TabsTrigger value='pending'>Pending</TabsTrigger>
-          <TabsTrigger value='declined'>Declined</TabsTrigger>
-        </TabsList>
-      </Tabs>
+      <div className='flex justify-between items-center'>
+        <Tabs
+          defaultValue='all'
+          value={currentStatus}
+          onValueChange={(value) => setCurrentStatus(value as StatusType)}
+          className='w-full'
+        >
+          <TabsList className='grid w-full grid-cols-4'>
+            <TabsTrigger value='all'>All</TabsTrigger>
+            <TabsTrigger value='approved'>Approved</TabsTrigger>
+            <TabsTrigger value='pending'>Pending</TabsTrigger>
+            <TabsTrigger value='declined'>Declined</TabsTrigger>
+          </TabsList>
+        </Tabs>
+
+        <div className='flex gap-2 ml-4'>
+          <Button
+            variant='outline'
+            size='sm'
+            onClick={() => toggleSort('name')}
+            className={cn('whitespace-nowrap', sortBy === 'name' && 'bg-muted')}
+          >
+            Name
+            <ArrowUpDown className='ml-2 h-4 w-4' />
+          </Button>
+          <Button
+            variant='outline'
+            size='sm'
+            onClick={() => toggleSort('date')}
+            className={cn('whitespace-nowrap', sortBy === 'date' && 'bg-muted')}
+          >
+            Date
+            <ArrowUpDown className='ml-2 h-4 w-4' />
+          </Button>
+        </div>
+      </div>
 
       <div className='grid gap-6 md:grid-cols-2 lg:grid-cols-3'>
-        {filteredAttractions.map((attraction) => (
+        {sortedAndFilteredAttractions.map((attraction) => (
           <Card
             key={attraction.id}
             className='hover:shadow-lg transition-shadow'
@@ -92,14 +240,40 @@ export default function ShowAttractions() {
                 <CardTitle className='text-xl font-bold'>
                   {attraction.name}
                 </CardTitle>
-                <Badge
-                  className={cn(
-                    'font-medium',
-                    getStatusClassName(attraction.status)
-                  )}
-                >
-                  {attraction.status}
-                </Badge>
+                <div className='flex items-center gap-2'>
+                  <Badge
+                    className={cn(
+                      'font-medium',
+                      getStatusClassName(attraction.status)
+                    )}
+                  >
+                    {attraction.status}
+                  </Badge>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant='ghost' size='icon'>
+                        <MoreVertical className='h-4 w-4' />
+                        <span className='sr-only'>Open menu</span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align='end'>
+                      <DropdownMenuItem onClick={() => handleEdit(attraction)}>
+                        <Pencil className='mr-2 h-4 w-4' />
+                        Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className='text-red-600'
+                        onClick={() => {
+                          setDeletingAttractionId(attraction.id);
+                          setShowDeleteDialog(true);
+                        }}
+                      >
+                        <Trash className='mr-2 h-4 w-4' />
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
               </div>
             </CardHeader>
             <CardContent className='space-y-4'>
@@ -127,7 +301,7 @@ export default function ShowAttractions() {
         ))}
       </div>
 
-      {filteredAttractions.length === 0 && (
+      {sortedAndFilteredAttractions.length === 0 && (
         <div className='text-center py-12'>
           <h3 className='text-lg font-semibold'>No attractions found</h3>
           <p className='text-muted-foreground'>
@@ -137,6 +311,121 @@ export default function ShowAttractions() {
           </p>
         </div>
       )}
+
+      <Dialog
+        open={!!editingAttraction}
+        onOpenChange={() => setEditingAttraction(null)}
+      >
+        <DialogContent className='sm:max-w-[425px]'>
+          <DialogHeader>
+            <DialogTitle>Edit Attraction</DialogTitle>
+            <DialogDescription>
+              Make changes to your attraction here.
+            </DialogDescription>
+          </DialogHeader>
+          <div className='grid gap-4 py-4'>
+            <div className='grid gap-2'>
+              <label htmlFor='name'>Name</label>
+              <Input
+                id='name'
+                value={editForm.name}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, name: e.target.value })
+                }
+              />
+            </div>
+            <div className='grid gap-2'>
+              <label htmlFor='short_description'>Short Description</label>
+              <Textarea
+                id='short_description'
+                value={editForm.short_description}
+                onChange={(e) =>
+                  setEditForm({
+                    ...editForm,
+                    short_description: e.target.value,
+                  })
+                }
+              />
+            </div>
+            <div className='grid gap-2'>
+              <label htmlFor='long_description'>Long Description</label>
+              <Textarea
+                id='long_description'
+                value={editForm.long_description}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, long_description: e.target.value })
+                }
+              />
+            </div>
+            <div className='grid gap-2'>
+              <label htmlFor='address'>Address</label>
+              <Input
+                id='address'
+                value={editForm.address}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, address: e.target.value })
+                }
+              />
+            </div>
+            <div className='grid grid-cols-2 gap-4'>
+              <div className='grid gap-2'>
+                <label htmlFor='city'>City</label>
+                <Input
+                  id='city'
+                  value={editForm.city}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, city: e.target.value })
+                  }
+                />
+              </div>
+              <div className='grid gap-2'>
+                <label htmlFor='country'>Country</label>
+                <Input
+                  id='country'
+                  value={editForm.country}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, country: e.target.value })
+                  }
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant='outline'
+              onClick={() => setEditingAttraction(null)}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleUpdate}>Save changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete your
+              attraction and remove it from our servers.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowDeleteDialog(false)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() =>
+                deletingAttractionId && handleDelete(deletingAttractionId)
+              }
+              className='bg-red-600 hover:bg-red-700'
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
