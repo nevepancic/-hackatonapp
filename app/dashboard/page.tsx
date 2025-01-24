@@ -23,12 +23,12 @@ export default function Dashboard() {
       if (user) {
         const { data: userData } = await supabase
           .from('users')
-          .select('full_name')
+          .select('company_name')
           .eq('id', user.id)
           .single();
 
         if (userData) {
-          setUserName(userData.full_name);
+          setUserName(userData.company_name);
         }
 
         const { data: attractions } = await supabase

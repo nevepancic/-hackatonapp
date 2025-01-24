@@ -4,10 +4,11 @@ RETURNS TRIGGER AS $$
 BEGIN
   -- Only create public user if the auth user is confirmed
   IF NEW.email_confirmed_at IS NOT NULL THEN
-    INSERT INTO public.users (id, full_name, role)
+    INSERT INTO public.users (id, full_name, company_name, role)
     VALUES (
       NEW.id,
-      COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.email),
+      NEW.email,
+      COALESCE(NEW.raw_user_meta_data->>'company_name', NEW.email),
       'partner'
     );
   END IF;
