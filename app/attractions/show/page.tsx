@@ -7,11 +7,16 @@ import { getCurrentUser } from '@/lib/functions/user';
 import { getAttractions, type Attraction } from '@/lib/functions/attractions';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, Globe, CheckCircle, XCircle } from 'lucide-react';
+import { MapPin, Globe } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { cn } from '@/lib/utils';
+
+type StatusType = 'all' | 'pending' | 'approved' | 'declined';
 
 export default function ShowAttractions() {
   const [attractions, setAttractions] = useState<Attraction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentStatus, setCurrentStatus] = useState<StatusType>('all');
 
   useEffect(() => {
     async function loadAttractions() {
@@ -28,6 +33,22 @@ export default function ShowAttractions() {
 
     loadAttractions();
   }, []);
+
+  const filteredAttractions = attractions.filter((attraction) => {
+    if (currentStatus === 'all') return true;
+    return attraction.status === currentStatus;
+  });
+
+  const getStatusClassName = (status: string) => {
+    switch (status) {
+      case 'approved':
+        return 'bg-green-100 text-green-800 hover:bg-green-200';
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200';
+      default:
+        return 'bg-red-100 text-red-800 hover:bg-red-200';
+    }
+  };
 
   if (loading) {
     return (
@@ -46,8 +67,22 @@ export default function ShowAttractions() {
         </p>
       </div>
 
+      <Tabs
+        defaultValue='all'
+        value={currentStatus}
+        onValueChange={(value) => setCurrentStatus(value as StatusType)}
+        className='w-full'
+      >
+        <TabsList className='grid w-full grid-cols-4'>
+          <TabsTrigger value='all'>All</TabsTrigger>
+          <TabsTrigger value='approved'>Approved</TabsTrigger>
+          <TabsTrigger value='pending'>Pending</TabsTrigger>
+          <TabsTrigger value='declined'>Declined</TabsTrigger>
+        </TabsList>
+      </Tabs>
+
       <div className='grid gap-6 md:grid-cols-2 lg:grid-cols-3'>
-        {attractions.map((attraction) => (
+        {filteredAttractions.map((attraction) => (
           <Card
             key={attraction.id}
             className='hover:shadow-lg transition-shadow'
@@ -58,15 +93,11 @@ export default function ShowAttractions() {
                   {attraction.name}
                 </CardTitle>
                 <Badge
-                  variant={
-                    attraction.status === 'approved' ? 'success' : 'secondary'
-                  }
-                >
-                  {attraction.status === 'approved' ? (
-                    <CheckCircle className='h-4 w-4 mr-1' />
-                  ) : (
-                    <XCircle className='h-4 w-4 mr-1' />
+                  className={cn(
+                    'font-medium',
+                    getStatusClassName(attraction.status)
                   )}
+                >
                   {attraction.status}
                 </Badge>
               </div>
@@ -96,11 +127,13 @@ export default function ShowAttractions() {
         ))}
       </div>
 
-      {attractions.length === 0 && (
+      {filteredAttractions.length === 0 && (
         <div className='text-center py-12'>
           <h3 className='text-lg font-semibold'>No attractions found</h3>
           <p className='text-muted-foreground'>
-            You haven&apos;t added any attractions yet.
+            {currentStatus === 'all'
+              ? "You haven't added any attractions yet."
+              : `No ${currentStatus} attractions found.`}
           </p>
         </div>
       )}
