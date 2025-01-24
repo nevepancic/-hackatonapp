@@ -16,6 +16,16 @@ export interface Attraction {
   updated_at: string;
 }
 
+export interface Ticket {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  currency: string;
+  validity_start: string;
+  validity_end: string;
+}
+
 export interface UpdateAttractionData {
   name?: string;
   short_description?: string;
@@ -43,10 +53,21 @@ export interface CreateTicketData {
   validity_end: string;
 }
 
-export async function getAttractions(userId: string): Promise<Attraction[]> {
+export interface AttractionWithTickets extends Attraction {
+  tickets: Ticket[];
+}
+
+export async function getAttractions(
+  userId: string
+): Promise<AttractionWithTickets[]> {
   const { data: attractions, error: attractionsError } = await supabase
     .from('attractions')
-    .select('*')
+    .select(
+      `
+      *,
+      tickets (*)
+    `
+    )
     .eq('user_id', userId);
 
   if (attractionsError) {

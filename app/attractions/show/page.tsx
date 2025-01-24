@@ -20,6 +20,11 @@ import {
   Pencil,
   Trash,
   ArrowUpDown,
+  ChevronDown,
+  ChevronUp,
+  Ticket,
+  Clock,
+  Euro,
 } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
@@ -51,13 +56,28 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
+import { format } from 'date-fns';
+
+interface Ticket {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  currency: string;
+  validity_start: string;
+  validity_end: string;
+}
+
+interface AttractionWithTickets extends Attraction {
+  tickets: Ticket[];
+}
 
 type StatusType = 'all' | 'pending' | 'approved' | 'declined';
 type SortType = 'name' | 'date';
 type SortDirection = 'asc' | 'desc';
 
 export default function ShowAttractions() {
-  const [attractions, setAttractions] = useState<Attraction[]>([]);
+  const [attractions, setAttractions] = useState<AttractionWithTickets[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentStatus, setCurrentStatus] = useState<StatusType>('all');
   const [sortBy, setSortBy] = useState<SortType>('date');
@@ -69,6 +89,9 @@ export default function ShowAttractions() {
   const [deletingAttractionId, setDeletingAttractionId] = useState<
     string | null
   >(null);
+  const [expandedAttractions, setExpandedAttractions] = useState<Set<string>>(
+    new Set()
+  );
   const [editForm, setEditForm] = useState<UpdateAttractionData>({
     name: '',
     short_description: '',
@@ -94,6 +117,16 @@ export default function ShowAttractions() {
       setLoading(false);
     }
   }
+
+  const toggleExpand = (attractionId: string) => {
+    const newExpanded = new Set(expandedAttractions);
+    if (newExpanded.has(attractionId)) {
+      newExpanded.delete(attractionId);
+    } else {
+      newExpanded.add(attractionId);
+    }
+    setExpandedAttractions(newExpanded);
+  };
 
   const handleEdit = (attraction: Attraction) => {
     setEditingAttraction(attraction);
@@ -290,6 +323,63 @@ export default function ShowAttractions() {
                   <Globe className='h-4 w-4 mr-2 text-muted-foreground' />
                   {attraction.country}
                 </div>
+              </div>
+
+              <div className='pt-4'>
+                <Button
+                  variant='outline'
+                  size='sm'
+                  className='w-full'
+                  onClick={() => toggleExpand(attraction.id)}
+                >
+                  <Ticket className='h-4 w-4 mr-2' />
+                  {expandedAttractions.has(attraction.id) ? (
+                    <>
+                      Hide Tickets
+                      <ChevronUp className='h-4 w-4 ml-2' />
+                    </>
+                  ) : (
+                    <>
+                      Show Tickets
+                      <ChevronDown className='h-4 w-4 ml-2' />
+                    </>
+                  )}
+                </Button>
+
+                {expandedAttractions.has(attraction.id) && (
+                  <div className='mt-4 space-y-3'>
+                    {attraction.tickets?.map((ticket) => (
+                      <Card key={ticket.id} className='bg-muted'>
+                        <CardContent className='p-4'>
+                          <div className='flex justify-between items-start mb-2'>
+                            <h4 className='font-semibold'>{ticket.name}</h4>
+                            <Badge variant='secondary' className='ml-2'>
+                              <Euro className='h-3 w-3 mr-1' />
+                              {ticket.price} {ticket.currency}
+                            </Badge>
+                          </div>
+                          <p className='text-sm text-muted-foreground mb-2'>
+                            {ticket.description}
+                          </p>
+                          <div className='flex items-center text-xs text-muted-foreground'>
+                            <Clock className='h-3 w-3 mr-1' />
+                            Valid:{' '}
+                            {format(
+                              new Date(ticket.validity_start),
+                              'PP'
+                            )} - {format(new Date(ticket.validity_end), 'PP')}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                    {(!attraction.tickets ||
+                      attraction.tickets.length === 0) && (
+                      <p className='text-sm text-muted-foreground text-center py-2'>
+                        No tickets available for this attraction
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className='text-xs text-muted-foreground mt-4'>
