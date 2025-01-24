@@ -8,8 +8,11 @@ import {
   getAttractions,
   updateAttraction,
   deleteAttraction,
+  updateTicket,
+  deleteTicket,
   type Attraction,
   type UpdateAttractionData,
+  type UpdateTicketData,
 } from '@/lib/functions/attractions';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -100,6 +103,13 @@ export default function ShowAttractions() {
     city: '',
     country: '',
   });
+  const [editingTicket, setEditingTicket] = useState<{
+    id: string;
+    attractionId: string;
+    data: UpdateTicketData;
+  } | null>(null);
+  const [deletingTicketId, setDeletingTicketId] = useState<string | null>(null);
+  const [showDeleteTicketDialog, setShowDeleteTicketDialog] = useState(false);
 
   useEffect(() => {
     loadAttractions();
@@ -167,6 +177,36 @@ export default function ShowAttractions() {
     } catch (error) {
       console.error('Error updating attraction:', error);
       toast.error('Failed to update attraction');
+    }
+  };
+
+  const handleEditTicket = async () => {
+    if (!editingTicket) return;
+
+    try {
+      const user = await getCurrentUser();
+      await updateTicket(editingTicket.id, user.id, editingTicket.data);
+      await loadAttractions();
+      setEditingTicket(null);
+      toast.success('Ticket updated successfully');
+    } catch (error) {
+      console.error('Error updating ticket:', error);
+      toast.error('Failed to update ticket');
+    }
+  };
+
+  const handleDeleteTicket = async (ticketId: string) => {
+    try {
+      const user = await getCurrentUser();
+      await deleteTicket(ticketId, user.id);
+      await loadAttractions();
+      toast.success('Ticket deleted successfully');
+    } catch (error) {
+      console.error('Error deleting ticket:', error);
+      toast.error('Failed to delete ticket');
+    } finally {
+      setShowDeleteTicketDialog(false);
+      setDeletingTicketId(null);
     }
   };
 
@@ -353,10 +393,50 @@ export default function ShowAttractions() {
                         <CardContent className='p-4'>
                           <div className='flex justify-between items-start mb-2'>
                             <h4 className='font-semibold'>{ticket.name}</h4>
-                            <Badge variant='secondary' className='ml-2'>
-                              <Euro className='h-3 w-3 mr-1' />
-                              {ticket.price} {ticket.currency}
-                            </Badge>
+                            <div className='flex items-center gap-2'>
+                              <Badge variant='secondary' className='ml-2'>
+                                <Euro className='h-3 w-3 mr-1' />
+                                {ticket.price} {ticket.currency}
+                              </Badge>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant='ghost' size='sm'>
+                                    <MoreVertical className='h-3 w-3' />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align='end'>
+                                  <DropdownMenuItem
+                                    onClick={() =>
+                                      setEditingTicket({
+                                        id: ticket.id,
+                                        attractionId: attraction.id,
+                                        data: {
+                                          name: ticket.name,
+                                          description: ticket.description,
+                                          price: ticket.price,
+                                          currency: ticket.currency,
+                                          validity_start: ticket.validity_start,
+                                          validity_end: ticket.validity_end,
+                                        },
+                                      })
+                                    }
+                                  >
+                                    <Pencil className='mr-2 h-3 w-3' />
+                                    Edit
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    className='text-red-600'
+                                    onClick={() => {
+                                      setDeletingTicketId(ticket.id);
+                                      setShowDeleteTicketDialog(true);
+                                    }}
+                                  >
+                                    <Trash className='mr-2 h-3 w-3' />
+                                    Delete
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
                           </div>
                           <p className='text-sm text-muted-foreground mb-2'>
                             {ticket.description}
@@ -508,6 +588,159 @@ export default function ShowAttractions() {
             <AlertDialogAction
               onClick={() =>
                 deletingAttractionId && handleDelete(deletingAttractionId)
+              }
+              className='bg-red-600 hover:bg-red-700'
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Dialog
+        open={!!editingTicket}
+        onOpenChange={() => setEditingTicket(null)}
+      >
+        <DialogContent className='sm:max-w-[425px]'>
+          <DialogHeader>
+            <DialogTitle>Edit Ticket</DialogTitle>
+            <DialogDescription>
+              Make changes to your ticket here.
+            </DialogDescription>
+          </DialogHeader>
+          {editingTicket && (
+            <div className='grid gap-4 py-4'>
+              <div className='grid gap-2'>
+                <label htmlFor='ticket-name'>Name</label>
+                <Input
+                  id='ticket-name'
+                  value={editingTicket.data.name}
+                  onChange={(e) =>
+                    setEditingTicket({
+                      ...editingTicket,
+                      data: { ...editingTicket.data, name: e.target.value },
+                    })
+                  }
+                />
+              </div>
+              <div className='grid gap-2'>
+                <label htmlFor='ticket-description'>Description</label>
+                <Textarea
+                  id='ticket-description'
+                  value={editingTicket.data.description}
+                  onChange={(e) =>
+                    setEditingTicket({
+                      ...editingTicket,
+                      data: {
+                        ...editingTicket.data,
+                        description: e.target.value,
+                      },
+                    })
+                  }
+                />
+              </div>
+              <div className='grid grid-cols-2 gap-4'>
+                <div className='grid gap-2'>
+                  <label htmlFor='ticket-price'>Price</label>
+                  <Input
+                    id='ticket-price'
+                    type='number'
+                    step='0.01'
+                    value={editingTicket.data.price}
+                    onChange={(e) =>
+                      setEditingTicket({
+                        ...editingTicket,
+                        data: {
+                          ...editingTicket.data,
+                          price: parseFloat(e.target.value),
+                        },
+                      })
+                    }
+                  />
+                </div>
+                <div className='grid gap-2'>
+                  <label htmlFor='ticket-currency'>Currency</label>
+                  <Input
+                    id='ticket-currency'
+                    value={editingTicket.data.currency}
+                    onChange={(e) =>
+                      setEditingTicket({
+                        ...editingTicket,
+                        data: {
+                          ...editingTicket.data,
+                          currency: e.target.value,
+                        },
+                      })
+                    }
+                  />
+                </div>
+              </div>
+              <div className='grid grid-cols-2 gap-4'>
+                <div className='grid gap-2'>
+                  <label htmlFor='ticket-start'>Valid From</label>
+                  <Input
+                    id='ticket-start'
+                    type='datetime-local'
+                    value={editingTicket.data.validity_start}
+                    onChange={(e) =>
+                      setEditingTicket({
+                        ...editingTicket,
+                        data: {
+                          ...editingTicket.data,
+                          validity_start: e.target.value,
+                        },
+                      })
+                    }
+                  />
+                </div>
+                <div className='grid gap-2'>
+                  <label htmlFor='ticket-end'>Valid Until</label>
+                  <Input
+                    id='ticket-end'
+                    type='datetime-local'
+                    value={editingTicket.data.validity_end}
+                    onChange={(e) =>
+                      setEditingTicket({
+                        ...editingTicket,
+                        data: {
+                          ...editingTicket.data,
+                          validity_end: e.target.value,
+                        },
+                      })
+                    }
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant='outline' onClick={() => setEditingTicket(null)}>
+              Cancel
+            </Button>
+            <Button onClick={handleEditTicket}>Save changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog
+        open={showDeleteTicketDialog}
+        onOpenChange={setShowDeleteTicketDialog}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete this
+              ticket.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowDeleteTicketDialog(false)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() =>
+                deletingTicketId && handleDeleteTicket(deletingTicketId)
               }
               className='bg-red-600 hover:bg-red-700'
             >

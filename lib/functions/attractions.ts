@@ -53,6 +53,15 @@ export interface CreateTicketData {
   validity_end: string;
 }
 
+export interface UpdateTicketData {
+  name?: string;
+  description?: string;
+  price?: number;
+  currency?: string;
+  validity_start?: string;
+  validity_end?: string;
+}
+
 export interface AttractionWithTickets extends Attraction {
   tickets: Ticket[];
 }
@@ -158,5 +167,64 @@ export async function deleteAttraction(
 
   if (error) {
     throw error;
+  }
+}
+
+export async function updateTicket(
+  ticketId: string,
+  userId: string,
+  data: UpdateTicketData
+): Promise<Ticket> {
+  // First verify the ticket belongs to the user's attraction
+  const { error: fetchError } = await supabase
+    .from('tickets')
+    .select('*, attractions!inner(*)')
+    .eq('id', ticketId)
+    .eq('attractions.user_id', userId)
+    .single();
+
+  if (fetchError) {
+    throw new Error('Ticket not found or access denied');
+  }
+
+  // Update the ticket
+  const { data: updatedTicket, error: updateError } = await supabase
+    .from('tickets')
+    .update(data)
+    .eq('id', ticketId)
+    .select()
+    .single();
+
+  if (updateError) {
+    throw updateError;
+  }
+
+  return updatedTicket;
+}
+
+export async function deleteTicket(
+  ticketId: string,
+  userId: string
+): Promise<void> {
+  // First verify the ticket belongs to the user's attraction
+  const { error: fetchError } = await supabase
+    .from('tickets')
+    .select('*, attractions!inner(*)')
+    .eq('id', ticketId)
+    .eq('attractions.user_id', userId)
+    .single();
+
+  if (fetchError) {
+    throw new Error('Ticket not found or access denied');
+  }
+
+  // Delete the ticket
+  const { error: deleteError } = await supabase
+    .from('tickets')
+    .delete()
+    .eq('id', ticketId);
+
+  if (deleteError) {
+    throw deleteError;
   }
 }
