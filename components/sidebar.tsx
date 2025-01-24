@@ -34,7 +34,7 @@ const privateNavigation = [
     href: '/attractions/add',
     icon: PlusCircle,
   },
-  { name: 'My Attractions', href: '/dashboard/my-attractions', icon: Ticket },
+  { name: 'My Attractions', href: '/attractions/show', icon: Ticket },
   { name: 'My Profile', href: '/dashboard/profile', icon: UserCircle },
 ];
 
