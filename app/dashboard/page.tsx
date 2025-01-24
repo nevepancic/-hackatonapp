@@ -4,129 +4,59 @@
 
 import { useEffect, useState } from 'react';
 import { Building2, Ticket, CheckCircle } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { getCurrentUser, getUserData } from '@/lib/functions/user';
+import { getAttractions } from '@/lib/functions/attractions';
+import { getTickets } from '@/lib/functions/tickets';
+
+interface DashboardStats {
+  totalAttractions: number;
+  activeAttractions: number;
+  totalTickets: number;
+}
 
 export default function Dashboard() {
-  console.log('Dashboard component rendering');
-
-  const [userName, setUserName] = useState('');
-  const [stats, setStats] = useState({
+  const [companyName, setCompanyName] = useState('');
+  const [stats, setStats] = useState<DashboardStats>({
     totalAttractions: 0,
     activeAttractions: 0,
     totalTickets: 0,
   });
 
   useEffect(() => {
-    console.log('Dashboard useEffect triggered');
-
-    async function loadUserData() {
-      console.log('loadUserData function called');
+    async function fetchDashboardData() {
       try {
-        console.log('Getting user...');
-        const {
-          data: { user },
-          error: userError,
-        } = await supabase.auth.getUser();
-        console.log('User from auth:', user);
-        console.log('User error:', userError);
+        const user = await getCurrentUser();
+        console.log('user from page debug', user);
+        const userId = user.id;
+        console.log('userId debug', userId);
 
-        if (userError) {
-          console.error('Error getting user:', userError);
-          return;
-        }
+        const userData = await getUserData(userId);
+        setCompanyName(userData.company_name);
 
-        if (user) {
-          console.log('Fetching user data from DB...');
-          // Try to get specific user
-          const { data: userData, error: dbError } = await supabase
-            .from('users')
-            .select('*')
-            .eq('id', user.id)
-            .single();
+        const attractions = await getAttractions(user.id);
 
-          console.log('User data from DB:', userData);
+        const tickets = await getTickets(attractions.map((a) => a.id));
 
-          if (!userData) {
-            console.log('User not found in DB, creating record...');
-            const { data: newUser, error: insertError } = await supabase
-              .from('users')
-              .insert({
-                id: user.id,
-                full_name: user.email,
-                company_name: 'Amsterdam zoo',
-                role: 'partner',
-              })
-              .select()
-              .single();
-
-            console.log('New user created:', newUser);
-            console.log('Insert error:', insertError);
-
-            if (newUser) {
-              setUserName(newUser.company_name);
-            }
-          } else {
-            setUserName(userData.company_name);
-          }
-
-          console.log('Fetching attractions...');
-          const { data: attractions, error: attractionsError } = await supabase
-            .from('attractions')
-            .select('id, status')
-            .eq('user_id', user.id);
-
-          console.log('Attractions:', attractions);
-          console.log('Attractions error:', attractionsError);
-
-          if (attractionsError) {
-            console.error('Error fetching attractions:', attractionsError);
-            return;
-          }
-
-          if (attractions && attractions.length > 0) {
-            console.log('Fetching tickets...');
-            const { data: tickets, error: ticketsError } = await supabase
-              .from('tickets')
-              .select('id')
-              .in(
-                'attraction_id',
-                attractions.map((a) => a.id)
-              );
-
-            console.log('Tickets:', tickets);
-            console.log('Tickets error:', ticketsError);
-
-            if (ticketsError) {
-              console.error('Error fetching tickets:', ticketsError);
-              return;
-            }
-
-            setStats({
-              totalAttractions: attractions.length,
-              activeAttractions: attractions.filter(
-                (a) => a.status === 'approved'
-              ).length,
-              totalTickets: tickets?.length || 0,
-            });
-          }
-        }
+        setStats({
+          totalAttractions: attractions.length,
+          activeAttractions: attractions.filter((a) => a.status === 'approved')
+            .length,
+          totalTickets: tickets,
+        });
       } catch (error) {
-        console.error('Unexpected error:', error);
+        console.error('Error loading dashboard data:', error);
       }
     }
 
-    loadUserData();
+    fetchDashboardData();
   }, []);
-
-  console.log('Current userName:', userName);
-  console.log('Current stats:', stats);
 
   return (
     <div className='space-y-6'>
       <div>
         <h1 className='text-3xl font-bold tracking-tight'>
-          Welcome back, {userName || 'Partner'}!
+          Welcome back, {companyName}!
         </h1>
         <p className='text-muted-foreground'>
           Here&apos;s an overview of your attractions and tickets

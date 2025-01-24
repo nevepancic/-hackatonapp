@@ -23,7 +23,7 @@ export async function signUp(email: string, password: string) {
     options: {
       emailRedirectTo: `${window.location.origin}/login?verified=true`,
       data: {
-        full_name: email, // This will be used by our trigger to create the user profile
+        full_name: email,
       },
     },
   });
