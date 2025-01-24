@@ -35,7 +35,7 @@ const privateNavigation = [
     icon: PlusCircle,
   },
   { name: 'My Attractions', href: '/attractions/show', icon: Ticket },
-  { name: 'My Profile', href: '/dashboard/profile', icon: UserCircle },
+  { name: 'My Profile', href: '/my-profile', icon: UserCircle },
 ];
 
 export function Sidebar() {
