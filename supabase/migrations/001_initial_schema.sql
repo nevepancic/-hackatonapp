@@ -1,10 +1,29 @@
 -- Enable necessary extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- Create enum types for better data consistency
-CREATE TYPE user_role AS ENUM ('admin', 'partner');
-CREATE TYPE content_status AS ENUM ('draft', 'in_review', 'approved', 'rejected');
-CREATE TYPE ticket_status AS ENUM ('pending', 'approved', 'denied');
+-- Create enum types if they don't exist
+DO $$ BEGIN
+    CREATE TYPE user_role AS ENUM ('admin', 'partner');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE content_status AS ENUM ('draft', 'in_review', 'approved', 'rejected');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE ticket_status AS ENUM ('pending', 'approved', 'denied');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+-- Drop existing tables if they exist (be careful with this in production!)
+DROP TABLE IF EXISTS tickets CASCADE;
+DROP TABLE IF EXISTS attractions CASCADE;
+DROP TABLE IF EXISTS users CASCADE;
 
 -- Users table (extends Supabase auth.users)
 CREATE TABLE users (
@@ -84,21 +103,25 @@ CREATE TRIGGER set_timestamp_tickets
     FOR EACH ROW
     EXECUTE FUNCTION trigger_set_timestamp();
 
--- Enable Row Level Security
-ALTER TABLE users ENABLE ROW LEVEL SECURITY;
-ALTER TABLE attractions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE tickets ENABLE ROW LEVEL SECURITY;
+-- Enable RLS
+ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 
--- Users policies
-CREATE POLICY "Users can view their own profile"
-    ON users FOR SELECT
-    USING (auth.uid() = id);
+-- Create policies
+CREATE POLICY "Users can view own data" ON public.users
+  FOR SELECT USING (
+    auth.uid() = id
+  );
 
-CREATE POLICY "Admins can view all profiles"
-    ON users FOR SELECT
-    USING (EXISTS (
-        SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin'
-    ));
+CREATE POLICY "Users can update own data" ON public.users
+  FOR UPDATE USING (
+    auth.uid() = id
+  );
+
+-- Allow public read of specific fields
+CREATE POLICY "Allow public read of company names" ON public.users
+  FOR SELECT USING (
+    true
+  );
 
 -- Attractions policies
 CREATE POLICY "Partners can view their own attractions"

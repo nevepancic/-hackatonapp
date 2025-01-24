@@ -8,6 +8,8 @@ import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default function Dashboard() {
+  console.log('Dashboard component rendering');
+
   const [userName, setUserName] = useState('');
   const [stats, setStats] = useState({
     totalAttractions: 0,
@@ -16,42 +18,109 @@ export default function Dashboard() {
   });
 
   useEffect(() => {
-    async function loadUserData() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (user) {
-        const { data: userData } = await supabase
-          .from('users')
-          .select('company_name')
-          .eq('id', user.id)
-          .single();
+    console.log('Dashboard useEffect triggered');
 
-        if (userData) {
-          setUserName(userData.company_name);
+    async function loadUserData() {
+      console.log('loadUserData function called');
+      try {
+        console.log('Getting user...');
+        const {
+          data: { user },
+          error: userError,
+        } = await supabase.auth.getUser();
+        console.log('User from auth:', user);
+        console.log('User error:', userError);
+
+        if (userError) {
+          console.error('Error getting user:', userError);
+          return;
         }
 
-        const { data: attractions } = await supabase
-          .from('attractions')
-          .select('id, status')
-          .eq('user_id', user.id);
+        if (user) {
+          console.log('Fetching user data from DB...');
+          // Try to get specific user
+          const { data: userData, error: dbError } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', user.id)
+            .single();
 
-        const { data: tickets } = await supabase
-          .from('tickets')
-          .select('id')
-          .in('attraction_id', attractions?.map((a) => a.id) || []);
+          console.log('User data from DB:', userData);
 
-        setStats({
-          totalAttractions: attractions?.length || 0,
-          activeAttractions:
-            attractions?.filter((a) => a.status === 'approved').length || 0,
-          totalTickets: tickets?.length || 0,
-        });
+          if (!userData) {
+            console.log('User not found in DB, creating record...');
+            const { data: newUser, error: insertError } = await supabase
+              .from('users')
+              .insert({
+                id: user.id,
+                full_name: user.email,
+                company_name: 'Amsterdam zoo',
+                role: 'partner',
+              })
+              .select()
+              .single();
+
+            console.log('New user created:', newUser);
+            console.log('Insert error:', insertError);
+
+            if (newUser) {
+              setUserName(newUser.company_name);
+            }
+          } else {
+            setUserName(userData.company_name);
+          }
+
+          console.log('Fetching attractions...');
+          const { data: attractions, error: attractionsError } = await supabase
+            .from('attractions')
+            .select('id, status')
+            .eq('user_id', user.id);
+
+          console.log('Attractions:', attractions);
+          console.log('Attractions error:', attractionsError);
+
+          if (attractionsError) {
+            console.error('Error fetching attractions:', attractionsError);
+            return;
+          }
+
+          if (attractions && attractions.length > 0) {
+            console.log('Fetching tickets...');
+            const { data: tickets, error: ticketsError } = await supabase
+              .from('tickets')
+              .select('id')
+              .in(
+                'attraction_id',
+                attractions.map((a) => a.id)
+              );
+
+            console.log('Tickets:', tickets);
+            console.log('Tickets error:', ticketsError);
+
+            if (ticketsError) {
+              console.error('Error fetching tickets:', ticketsError);
+              return;
+            }
+
+            setStats({
+              totalAttractions: attractions.length,
+              activeAttractions: attractions.filter(
+                (a) => a.status === 'approved'
+              ).length,
+              totalTickets: tickets?.length || 0,
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Unexpected error:', error);
       }
     }
 
     loadUserData();
   }, []);
+
+  console.log('Current userName:', userName);
+  console.log('Current stats:', stats);
 
   return (
     <div className='space-y-6'>

@@ -4,7 +4,7 @@
 
 import { Sidebar } from '@/components/sidebar';
 
-export default function DashboardLayout({
+export default function AttractionsLayout({
   children,
 }: {
   children: React.ReactNode;
