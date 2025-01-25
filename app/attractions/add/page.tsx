@@ -28,7 +28,30 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { toast } from 'sonner';
 import { PlusCircle, X } from 'lucide-react';
-import { insertAttractionAndTickets } from '@/lib/functions/attractions';
+import {
+  insertAttractionAndTickets,
+  uploadAttractionImage,
+  uploadAttractionBarcode,
+} from '@/lib/functions/attractions';
+
+const openingHoursSchema = z.object({
+  open: z
+    .string()
+    .regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format (HH:MM)'),
+  close: z
+    .string()
+    .regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format (HH:MM)'),
+});
+
+const weekOpeningHoursSchema = z.object({
+  monday: openingHoursSchema,
+  tuesday: openingHoursSchema,
+  wednesday: openingHoursSchema,
+  thursday: openingHoursSchema,
+  friday: openingHoursSchema,
+  saturday: openingHoursSchema,
+  sunday: openingHoursSchema,
+});
 
 const ticketSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -49,14 +72,27 @@ const attractionSchema = z.object({
   address: z.string().min(1, 'Address is required'),
   city: z.string().min(1, 'City is required'),
   country: z.string().min(1, 'Country is required'),
+  opening_hours: weekOpeningHoursSchema,
   tickets: z.array(ticketSchema),
 });
 
 type AttractionForm = z.infer<typeof attractionSchema>;
 
+const defaultOpeningHours = {
+  monday: { open: '09:00', close: '17:00' },
+  tuesday: { open: '09:00', close: '17:00' },
+  wednesday: { open: '09:00', close: '17:00' },
+  thursday: { open: '09:00', close: '17:00' },
+  friday: { open: '09:00', close: '17:00' },
+  saturday: { open: '10:00', close: '18:00' },
+  sunday: { open: '10:00', close: '18:00' },
+};
+
 export default function AddAttraction() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [barcodeFile, setBarcodeFile] = useState<File | null>(null);
 
   useEffect(() => {
     async function checkAuth() {
@@ -80,6 +116,7 @@ export default function AddAttraction() {
       address: '',
       city: '',
       country: '',
+      opening_hours: defaultOpeningHours,
       tickets: [
         {
           name: '',
@@ -104,8 +141,28 @@ export default function AddAttraction() {
         return;
       }
 
+      let imageUrl = '';
+      let barcodeUrl = '';
+
+      if (imageFile) {
+        imageUrl = await uploadAttractionImage(imageFile, user.id);
+      }
+
+      if (barcodeFile) {
+        barcodeUrl = await uploadAttractionBarcode(barcodeFile, user.id);
+      }
+
       const { tickets, ...attractionData } = data;
-      await insertAttractionAndTickets(user.id, attractionData, tickets);
+      await insertAttractionAndTickets(
+        user.id,
+        {
+          ...attractionData,
+          opening_hours: data.opening_hours,
+          image_url: imageUrl,
+          barcode_url: barcodeUrl,
+        },
+        tickets
+      );
 
       toast.success('Attraction added successfully');
       router.push('/dashboard');
@@ -142,6 +199,34 @@ export default function AddAttraction() {
       );
     }
   };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.type.startsWith('image/')) {
+        setImageFile(file);
+      } else {
+        toast.error('Please upload an image file');
+      }
+    }
+  };
+
+  const handleBarcodeUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setBarcodeFile(file);
+    }
+  };
+
+  const days = [
+    'monday',
+    'tuesday',
+    'wednesday',
+    'thursday',
+    'friday',
+    'saturday',
+    'sunday',
+  ] as const;
 
   return (
     <div className='max-w-2xl mx-auto py-6'>
@@ -247,6 +332,70 @@ export default function AddAttraction() {
                     </FormItem>
                   )}
                 />
+              </div>
+
+              <div className='space-y-4'>
+                <h3 className='text-lg font-semibold'>Opening Hours</h3>
+                <div className='grid gap-4'>
+                  {days.map((day) => (
+                    <div
+                      key={day}
+                      className='grid grid-cols-3 gap-4 items-center'
+                    >
+                      <div className='capitalize'>{day}</div>
+                      <FormField
+                        control={form.control}
+                        name={`opening_hours.${day}.open`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormControl>
+                              <Input type='time' {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name={`opening_hours.${day}.close`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormControl>
+                              <Input type='time' {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className='space-y-4'>
+                <h3 className='text-lg font-semibold'>Media</h3>
+                <div className='grid gap-4'>
+                  <div>
+                    <FormLabel>Attraction Image</FormLabel>
+                    <div className='mt-2'>
+                      <Input
+                        type='file'
+                        accept='image/*'
+                        onChange={handleImageUpload}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <FormLabel>Barcode File</FormLabel>
+                    <div className='mt-2'>
+                      <Input
+                        type='file'
+                        accept='.csv,.txt,.pdf'
+                        onChange={handleBarcodeUpload}
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <div className='space-y-4'>

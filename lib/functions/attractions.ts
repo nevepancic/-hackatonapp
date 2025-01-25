@@ -2,6 +2,21 @@
 
 import { supabase } from '@/lib/supabase';
 
+export interface OpeningHours {
+  open: string;
+  close: string;
+}
+
+export interface WeekOpeningHours {
+  monday: OpeningHours;
+  tuesday: OpeningHours;
+  wednesday: OpeningHours;
+  thursday: OpeningHours;
+  friday: OpeningHours;
+  saturday: OpeningHours;
+  sunday: OpeningHours;
+}
+
 export interface Attraction {
   id: string;
   user_id: string;
@@ -12,6 +27,9 @@ export interface Attraction {
   city: string;
   country: string;
   status: string;
+  opening_hours: WeekOpeningHours;
+  image_url?: string;
+  barcode_url?: string;
   created_at: string;
   updated_at: string;
 }
@@ -33,6 +51,9 @@ export interface UpdateAttractionData {
   address?: string;
   city?: string;
   country?: string;
+  opening_hours?: WeekOpeningHours;
+  image_url?: string;
+  barcode_url?: string;
 }
 
 export interface CreateAttractionData {
@@ -42,6 +63,9 @@ export interface CreateAttractionData {
   address: string;
   city: string;
   country: string;
+  opening_hours: WeekOpeningHours;
+  image_url?: string;
+  barcode_url?: string;
 }
 
 export interface CreateTicketData {
@@ -227,4 +251,42 @@ export async function deleteTicket(
   if (deleteError) {
     throw deleteError;
   }
+}
+
+export async function uploadAttractionImage(
+  file: File,
+  userId: string
+): Promise<string> {
+  const fileExt = file.name.split('.').pop();
+  const fileName = `${userId}/${crypto.randomUUID()}.${fileExt}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from('attractions')
+    .upload(fileName, file);
+
+  if (uploadError) {
+    throw uploadError;
+  }
+
+  const { data } = supabase.storage.from('attractions').getPublicUrl(fileName);
+  return data.publicUrl;
+}
+
+export async function uploadAttractionBarcode(
+  file: File,
+  userId: string
+): Promise<string> {
+  const fileExt = file.name.split('.').pop();
+  const fileName = `${userId}/${crypto.randomUUID()}.${fileExt}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from('barcodes')
+    .upload(fileName, file);
+
+  if (uploadError) {
+    throw uploadError;
+  }
+
+  const { data } = supabase.storage.from('barcodes').getPublicUrl(fileName);
+  return data.publicUrl;
 }
