@@ -30,6 +30,7 @@ import {
   deleteUserProfile,
   type UserData,
 } from '@/lib/functions/user';
+import { showSuccess, showError, showLoading } from '@/lib/notifications';
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -54,6 +55,7 @@ export default function ProfilePage() {
   }, []);
 
   const handleUpdateCompanyName = async () => {
+    const loadingToast = showLoading('Updating company name...');
     try {
       if (!userData) return;
       await updateCompanyName(userData.id, companyName);
@@ -61,17 +63,26 @@ export default function ProfilePage() {
         prev ? { ...prev, company_name: companyName } : null
       );
       setIsEditing(false);
+      loadingToast();
+      showSuccess('Company name updated successfully');
     } catch (error) {
+      loadingToast();
+      showError('Failed to update company name');
       console.error('Error updating company name:', error);
     }
   };
 
   const handleDeleteProfile = async () => {
+    const loadingToast = showLoading('Deleting profile...');
     try {
       if (!userData) return;
       await deleteUserProfile(userData.id);
+      loadingToast();
+      showSuccess('Profile deleted successfully');
       router.push('/auth/signup');
     } catch (error) {
+      loadingToast();
+      showError('Failed to delete profile');
       console.error('Error deleting profile:', error);
     }
   };
