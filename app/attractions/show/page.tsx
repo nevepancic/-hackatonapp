@@ -28,6 +28,8 @@ import {
   Ticket,
   Clock,
   Euro,
+  Download,
+  ImageIcon,
 } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
@@ -60,6 +62,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import Image from 'next/image';
 
 interface Ticket {
   id: string;
@@ -306,8 +309,22 @@ export default function ShowAttractions() {
         {sortedAndFilteredAttractions.map((attraction) => (
           <Card
             key={attraction.id}
-            className='hover:shadow-lg transition-shadow'
+            className='hover:shadow-lg transition-shadow overflow-hidden'
           >
+            {attraction.image_url && (
+              <div className='w-full h-48 overflow-hidden'>
+                <img
+                  src={attraction.image_url}
+                  alt={attraction.name}
+                  className='w-full h-full object-cover'
+                />
+              </div>
+            )}
+            {!attraction.image_url && (
+              <div className='w-full h-48 bg-muted flex items-center justify-center'>
+                <ImageIcon className='h-12 w-12 text-muted-foreground' />
+              </div>
+            )}
             <CardHeader>
               <div className='flex justify-between items-start'>
                 <CardTitle className='text-xl font-bold'>
@@ -334,6 +351,16 @@ export default function ShowAttractions() {
                         <Pencil className='mr-2 h-4 w-4' />
                         Edit
                       </DropdownMenuItem>
+                      {attraction.barcode_url && (
+                        <DropdownMenuItem
+                          onClick={() =>
+                            window.open(attraction.barcode_url, '_blank')
+                          }
+                        >
+                          <Download className='mr-2 h-4 w-4' />
+                          Download Barcode
+                        </DropdownMenuItem>
+                      )}
                       <DropdownMenuItem
                         className='text-red-600'
                         onClick={() => {

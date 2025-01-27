@@ -4,7 +4,9 @@
  */
 
 const nextConfig = {
-  /* config options here */
+  images: {
+    domains: ['kxuygzarbkfbukkkycga.supabase.co'],
+  },
 };
 
 module.exports = nextConfig;
