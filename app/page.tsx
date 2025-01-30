@@ -14,10 +14,10 @@ export default function LandingPage() {
       <div className='max-w-md w-full space-y-8 p-8'>
         <div className='text-center'>
           <h1 className='text-4xl font-bold text-gray-900 mb-2'>
-            Welcome to Miyagami
+            Welcome to Miyagami Audio Transcriptor
           </h1>
           <p className='text-lg text-gray-600 mb-8'>
-            Your trusted platform for managing attractions
+            Your trusted tool for meetings
           </p>
         </div>
 
