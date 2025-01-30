@@ -3,136 +3,110 @@
 'use client';
 
 import { useState } from 'react';
-import { signUp } from '@/lib/auth';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { supabase } from '@/lib/supabase';
 
 export default function SignUpPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setIsLoading(true);
     setError('');
 
-    if (password !== confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
+    const formData = new FormData(event.currentTarget);
+    const email = formData.get('email') as string;
+    const password = formData.get('password') as string;
 
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters long');
-      return;
-    }
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+    });
 
-    setIsLoading(true);
-
-    try {
-      await signUp(email, password);
-      // Supabase sends a confirmation email by default
-      router.push('/login?message=check-email');
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError('An unexpected error occurred');
-      }
-    } finally {
+    if (error) {
+      setError(error.message);
       setIsLoading(false);
+      return;
     }
-  };
+
+    router.push('/dashboard');
+  }
 
   return (
-    <div className='min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8'>
-      <div className='max-w-md w-full space-y-8'>
-        <div>
-          <h2 className='mt-6 text-center text-3xl font-extrabold text-gray-900'>
-            Create your account
-          </h2>
-          <p className='mt-2 text-center text-sm text-gray-600'>
-            Or{' '}
-            <Link
-              href='/login'
-              className='font-medium text-indigo-600 hover:text-indigo-500'
-            >
-              sign in to your account
-            </Link>
-          </p>
-        </div>
-
-        {error && (
-          <div className='rounded-md bg-red-50 p-4'>
-            <div className='text-sm text-red-700'>{error}</div>
-          </div>
-        )}
-
-        <form className='mt-8 space-y-6' onSubmit={handleSubmit}>
-          <div className='rounded-md shadow-sm -space-y-px'>
-            <div>
-              <label htmlFor='email-address' className='sr-only'>
-                Email address
+    <div className='container max-w-md mx-auto p-4 h-screen flex items-center'>
+      <Card className='w-full'>
+        <CardHeader className='space-y-1'>
+          <CardTitle className='text-2xl text-center'>
+            Create an account
+          </CardTitle>
+          <CardDescription className='text-center'>
+            Enter your email below to create your account
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className='space-y-4'>
+            <div className='space-y-2'>
+              <label htmlFor='email' className='text-sm font-medium text-white'>
+                Email
               </label>
               <input
-                id='email-address'
+                id='email'
                 name='email'
                 type='email'
-                autoComplete='email'
+                placeholder='m@example.com'
                 required
-                className='appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm'
-                placeholder='Email address'
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                className='w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500'
               />
             </div>
-            <div>
-              <label htmlFor='password' className='sr-only'>
+            <div className='space-y-2'>
+              <label
+                htmlFor='password'
+                className='text-sm font-medium text-white'
+              >
                 Password
               </label>
               <input
                 id='password'
                 name='password'
                 type='password'
-                autoComplete='new-password'
                 required
-                className='appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm'
-                placeholder='Password'
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                className='w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500'
               />
             </div>
-            <div>
-              <label htmlFor='confirm-password' className='sr-only'>
-                Confirm Password
-              </label>
-              <input
-                id='confirm-password'
-                name='confirmPassword'
-                type='password'
-                autoComplete='new-password'
-                required
-                className='appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm'
-                placeholder='Confirm Password'
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-              />
-            </div>
-          </div>
 
-          <div>
-            <button
-              type='submit'
-              disabled={isLoading}
-              className='group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
-            >
-              {isLoading ? 'Creating account...' : 'Sign up'}
-            </button>
-          </div>
-        </form>
-      </div>
+            {error && (
+              <div className='text-red-500 text-sm bg-red-500/10 p-3 rounded-lg'>
+                {error}
+              </div>
+            )}
+
+            <Button type='submit' disabled={isLoading}>
+              {isLoading ? 'Creating account...' : 'Create account'}
+            </Button>
+
+            <div className='text-center text-sm text-purple-100'>
+              Already have an account?{' '}
+              <Link
+                href='/auth/login'
+                className='text-white hover:text-purple-200 underline underline-offset-4'
+              >
+                Sign in
+              </Link>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 }

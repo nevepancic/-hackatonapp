@@ -2,158 +2,117 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
-import { signIn, resetPassword } from '@/lib/auth';
-import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { supabase } from '@/lib/supabase';
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [isResetMode, setIsResetMode] = useState(false);
-  const [resetSent, setResetSent] = useState(false);
-  const [message, setMessage] = useState('');
 
-  useEffect(() => {
-    // Check URL parameters for messages
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('verified') === 'true') {
-      setMessage('Email verified successfully! You can now sign in.');
-    } else if (params.get('message') === 'check-email') {
-      setMessage('Please check your email to verify your account.');
-    } else if (params.get('reset') === 'success') {
-      setMessage('Password has been reset successfully! You can now sign in.');
-    }
-  }, []);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     setIsLoading(true);
     setError('');
 
-    try {
-      if (isResetMode) {
-        await resetPassword(email);
-        setResetSent(true);
-      } else {
-        await signIn(email, password);
-        router.push('/dashboard'); // Redirect to dashboard after login
-      }
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError('An unexpected error occurred');
-      }
-    } finally {
+    const formData = new FormData(event.currentTarget);
+    const email = formData.get('email') as string;
+    const password = formData.get('password') as string;
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      setError(error.message);
       setIsLoading(false);
+      return;
     }
-  };
+
+    router.push('/dashboard');
+  }
 
   return (
-    <div className='min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8'>
-      <div className='max-w-md w-full space-y-8'>
-        <div>
-          <h2 className='mt-6 text-center text-3xl font-extrabold text-gray-900'>
-            {isResetMode ? 'Reset Password' : 'Sign in to your account'}
-          </h2>
-          <p className='mt-2 text-center text-sm text-gray-600'>
-            Or{' '}
-            <Link
-              href='/signup'
-              className='font-medium text-indigo-600 hover:text-indigo-500'
-            >
-              create a new account
-            </Link>
-          </p>
-        </div>
-
-        {message && (
-          <div className='rounded-md bg-green-50 p-4'>
-            <div className='text-sm text-green-700'>{message}</div>
-          </div>
-        )}
-
-        {error && (
-          <div className='rounded-md bg-red-50 p-4'>
-            <div className='text-sm text-red-700'>{error}</div>
-          </div>
-        )}
-
-        {resetSent && (
-          <div className='rounded-md bg-green-50 p-4'>
-            <div className='text-sm text-green-700'>
-              Password reset instructions have been sent to your email.
-            </div>
-          </div>
-        )}
-
-        <form className='mt-8 space-y-6' onSubmit={handleSubmit}>
-          <div className='rounded-md shadow-sm -space-y-px'>
-            <div>
-              <label htmlFor='email-address' className='sr-only'>
-                Email address
+    <div className='container max-w-md mx-auto p-4 h-screen flex items-center'>
+      <Card className='w-full'>
+        <CardHeader className='space-y-1'>
+          <CardTitle className='text-2xl text-center'>Welcome back</CardTitle>
+          <CardDescription className='text-center'>
+            Sign in to your account to continue
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className='space-y-4'>
+            <div className='space-y-2'>
+              <label htmlFor='email' className='text-sm font-medium text-white'>
+                Email
               </label>
               <input
-                id='email-address'
+                id='email'
                 name='email'
                 type='email'
-                autoComplete='email'
+                placeholder='m@example.com'
                 required
-                className='appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm'
-                placeholder='Email address'
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                className='w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500'
               />
             </div>
-            {!isResetMode && (
-              <div>
-                <label htmlFor='password' className='sr-only'>
+            <div className='space-y-2'>
+              <div className='flex items-center justify-between'>
+                <label
+                  htmlFor='password'
+                  className='text-sm font-medium text-white'
+                >
                   Password
                 </label>
-                <input
-                  id='password'
-                  name='password'
-                  type='password'
-                  autoComplete='current-password'
-                  required
-                  className='appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm'
-                  placeholder='Password'
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
+                <Link
+                  href='/auth/reset-password'
+                  className='text-sm text-purple-100 hover:text-white'
+                >
+                  Forgot password?
+                </Link>
+              </div>
+              <input
+                id='password'
+                name='password'
+                type='password'
+                required
+                className='w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500'
+              />
+            </div>
+
+            {error && (
+              <div className='text-red-500 text-sm bg-red-500/10 p-3 rounded-lg'>
+                {error}
               </div>
             )}
-          </div>
 
-          <div className='flex items-center justify-between'>
-            <button
-              type='button'
-              className='text-sm text-indigo-600 hover:text-indigo-500'
-              onClick={() => setIsResetMode(!isResetMode)}
-            >
-              {isResetMode ? 'Back to login' : 'Forgot your password?'}
-            </button>
-          </div>
+            <Button type='submit' disabled={isLoading}>
+              {isLoading ? 'Signing in...' : 'Sign in'}
+            </Button>
 
-          <div>
-            <button
-              type='submit'
-              disabled={isLoading}
-              className='group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
-            >
-              {isLoading
-                ? 'Loading...'
-                : isResetMode
-                ? 'Send reset instructions'
-                : 'Sign in'}
-            </button>
-          </div>
-        </form>
-      </div>
+            <div className='text-center text-sm text-purple-100'>
+              Don't have an account?{' '}
+              <Link
+                href='/auth/signup'
+                className='text-white hover:text-purple-200 underline underline-offset-4'
+              >
+                Sign up
+              </Link>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 }
