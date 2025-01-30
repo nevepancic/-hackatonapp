@@ -23,18 +23,13 @@ import { supabase } from '@/lib/supabase';
 
 const publicNavigation = [
   { name: 'Home', href: '/', icon: Home },
-  { name: 'Sign Up', href: '/signup', icon: UserPlus },
-  { name: 'Log In', href: '/login', icon: LogIn },
+  { name: 'Sign Up', href: '/auth/signup', icon: UserPlus },
+  { name: 'Log In', href: '/auth/login', icon: LogIn },
 ];
 
 const privateNavigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  {
-    name: 'Add Attraction',
-    href: '/attractions/add',
-    icon: PlusCircle,
-  },
-  { name: 'My Attractions', href: '/attractions/show', icon: Ticket },
+
   { name: 'My Profile', href: '/my-profile', icon: UserCircle },
 ];
 

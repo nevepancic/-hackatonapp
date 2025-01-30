@@ -21,7 +21,7 @@ export async function signUp(email: string, password: string) {
     email,
     password,
     options: {
-      emailRedirectTo: `${window.location.origin}/login?verified=true`,
+      emailRedirectTo: `${window.location.origin}/auth/login?verified=true`,
       data: {
         full_name: email,
       },

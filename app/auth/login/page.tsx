@@ -24,6 +24,8 @@ export default function LoginPage() {
       setMessage('Email verified successfully! You can now sign in.');
     } else if (params.get('message') === 'check-email') {
       setMessage('Please check your email to verify your account.');
+    } else if (params.get('reset') === 'success') {
+      setMessage('Password has been reset successfully! You can now sign in.');
     }
   }, []);
 
